@@ -115,53 +115,19 @@ object Interpreter:
     case E.Error(m)   => E.Error(m)
   }
 
+  type P[A] = Position => E[A]
+
+  given TheMonad[P] with
+    def showM(m: P[Value]): String               = showP(m)
+    def unitM[A](v: A): P[A]                     = unitP(v)
+    def bindM[A, B](m: P[A])(f: A => P[B]): P[B] = bindP(m)(f)
+
+  private def showP(m: P[Value]): String =
+    showE(m(Position.pos0))
+
+  private def unitP[A](v: A): P[A]                     = p => unitE(v)
+  private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = ???
+
 class InterpreterE extends Interpreter[Interpreter.E](using Interpreter.given_TheMonad_E):
   override protected def wrong(message: String): E[Value] =
     Interpreter.errorE(message)
-
-// object InterpreterE extends Interpreter:
-//   type M[A] = E[A]
-
-//   enum E[A]:
-//     case Success(a: A)          extends E[A]
-//     case Error(message: String) extends E[A]
-
-//   override def showM(m: M[Value]): String               = showE(m)
-//   override def unitM[A](v: A): E[A]                     = unitE(v)
-//   override def bindM[A, B](m: E[A])(f: A => E[B]): E[B] = bindE(m)(f)
-
-//   def showE(m: E[Value]): String = m match {
-//     case E.Success(a) => s"Success: ${showval(a)}"
-//     case E.Error(m)   => s"Error: ${m}"
-//   }
-
-//   def unitE[A](a: A): E[A]               = E.Success(a)
-//   private def errorE[A](m: String): E[A] = E.Error(m)
-
-//   def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match {
-//     case E.Success(a) => f(a)
-//     case E.Error(m)   => E.Error(m)
-//   }
-
-//   override def wrong(message: String): E[Value] =
-//     errorE(message)
-
-// object InterpreterP extends Interpreter:
-
-//   type M[A] = P[A]
-
-//   import InterpreterE.{E, showE, unitE, bindE}
-//   import Position.pos0
-
-//   type P[A] = Position => E[A]
-
-//   override def showM(m: M[Value]): String               = showP(m)
-//   override def unitM[A](v: A): M[A]                     = unitP(v)
-//   override def bindM[A, B](m: M[A])(f: A => M[B]): M[B] = bindP(m)(f)
-
-//   private def showP(m: M[Value]): String =
-//     val fw1: E[Value] = m(pos0)
-//     showE(fw1)
-
-//   private def unitP[A](v: A): P[A]                     = p => unitE(v)
-//   private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = ???
