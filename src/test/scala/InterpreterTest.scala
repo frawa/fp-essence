@@ -8,6 +8,7 @@ import Term._
 class InterpreterTest extends munit.FunSuite {
   val term0 = App(Lam("x", Add(Var("x"), Var("x"))), Add(Con(10), Con(11)))
   val term1 = App(Con(1), Con(2))
+  val term2 = At(Position(13), App(Con(1), Con(2)))
 
   import Interpreter.given
 
@@ -34,14 +35,17 @@ class InterpreterTest extends munit.FunSuite {
   }
 
   import Interpreter.P
-  val interpreterP = new InterpreterE
+  val interpreterP = new InterpreterP
 
   test("P 42") {
     assertEquals(interpreterP.testTerm(term0), "Success: 42")
   }
 
   test("P wrong") {
-    assertEquals(interpreterP.testTerm(term1), "Error: should be function: 1")
+    assertEquals(interpreterP.testTerm(term1), "Error: [0]: should be function: 1")
   }
 
+  test("P wrong with position") {
+    assertEquals(interpreterP.testTerm(term2), "Error: [13]: should be function: 1")
+  }
 }

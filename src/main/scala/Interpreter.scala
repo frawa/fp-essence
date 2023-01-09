@@ -1,6 +1,7 @@
 package fpessence
 
 import fpessence.Interpreter.E
+import fpessence.Interpreter.P
 
 // TODO opaque
 type Name = String
@@ -29,18 +30,9 @@ enum Value:
   case Fun[M[Value]](f: Value => M[Value]) extends Value
 
 class Interpreter[M[_]](using TheMonad[M]):
-
-//   enum Value:
-//     case Wrong                     extends Value
-//     case Num(i: Int)               extends Value
-//     case Fun(f: Value => M[Value]) extends Value
-
-//   protected def showM(m: M[Value]): String
-//   protected def unitM[A](v: A): M[A]
-//   protected def bindM[A, B](m: M[A])(f: A => M[B]): M[B]
-  protected val m = summon[TheMonad[M]]
-
   final def testTerm(term: Term): String = m.showM(interp(term, Seq()))
+
+  protected val m = summon[TheMonad[M]]
 
   private type Environment = Seq[(Name, Value)]
 
@@ -59,6 +51,7 @@ class Interpreter[M[_]](using TheMonad[M]):
     case Add(a, b) => m.bindM(interp(a, e)) { a => m.bindM(interp(b, e)) { b => add(a, b) } }
     case Lam(x, t) => m.unitM(Fun(xx => interp(t, (x, xx) +: e)))
     case App(f, t) => m.bindM(interp(f, e)) { f => m.bindM(interp(t, e)) { t => apply(f, t) } }
+    case At(p, t)  => reset(p, interp(t, e))
   }
 
   private def lookup(name: Name, e: Environment): M[Value] = e match {
@@ -79,6 +72,9 @@ class Interpreter[M[_]](using TheMonad[M]):
   protected def wrong(message: String): M[Value] =
     m.unitM(Wrong)
 
+  protected def reset(p: Position, m: M[Value]): M[Value] =
+    m
+
 object Interpreter:
   import Value._
 
@@ -94,6 +90,9 @@ object Interpreter:
     case Num(i) => s"$i"
     case Fun(f) => "<function>"
   }
+
+  def showpos(p: Position): String =
+    s"[$p]"
 
   enum E[A]:
     case Success(a: A)          extends E[A]
@@ -122,12 +121,20 @@ object Interpreter:
     def unitM[A](v: A): P[A]                     = unitP(v)
     def bindM[A, B](m: P[A])(f: A => P[B]): P[B] = bindP(m)(f)
 
-  private def showP(m: P[Value]): String =
-    showE(m(Position.pos0))
+  private def showP(m: P[Value]): String = showE(m(Position.pos0))
+  def errorP[A](m: String): P[A]         = p => errorE(s"${showpos(p)}: $m")
 
   private def unitP[A](v: A): P[A]                     = p => unitE(v)
-  private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = ???
+  private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = p => bindE(m(p))(x => f(x)(p))
+
+  def resetP[A](p: Position, m: P[A]): P[A] = q => m(p)
 
 class InterpreterE extends Interpreter[Interpreter.E](using Interpreter.given_TheMonad_E):
   override protected def wrong(message: String): E[Value] =
     Interpreter.errorE(message)
+
+class InterpreterP extends Interpreter[Interpreter.P](using Interpreter.given_TheMonad_P):
+  override protected def reset(p: Position, m: P[Value]): P[Value] =
+    Interpreter.resetP(p, m)
+  override protected def wrong(message: String): P[Value] =
+    Interpreter.errorP(message)
