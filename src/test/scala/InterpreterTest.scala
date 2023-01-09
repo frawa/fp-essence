@@ -29,4 +29,14 @@ class InterpreterTest extends munit.FunSuite {
     assertEquals(testTerm(term1), "Error: should be function: 1")
   }
 
+  // test("P 42") {
+  //   import InterpreterP._
+  //   assertEquals(testTerm(term0), "Success: 42")
+  // }
+
+  // test("P wrong") {
+  //   import InterpreterP._
+  //   assertEquals(testTerm(term1), "Error: should be function: 1")
+  // }
+
 }

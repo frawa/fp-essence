@@ -1,13 +1,20 @@
 package fpessence
 
+// TODO opaque
 type Name = String
 
+opaque type Position = Int
+object Position:
+  val pos0: Position          = 0
+  def apply(p: Int): Position = p
+
 enum Term:
-  case Var(name: Name)       extends Term
-  case Con(i: Int)           extends Term
-  case Add(a: Term, b: Term) extends Term
-  case Lam(x: Name, e: Term) extends Term
-  case App(f: Term, t: Term) extends Term
+  case Var(name: Name)          extends Term
+  case Con(i: Int)              extends Term
+  case Add(a: Term, b: Term)    extends Term
+  case Lam(x: Name, e: Term)    extends Term
+  case App(f: Term, t: Term)    extends Term
+  case At(p: Position, t: Term) extends Term
 
 trait Interpreter {
   type M[A]
@@ -80,18 +87,38 @@ object InterpreterE extends Interpreter:
   override def unitM[A](v: A): E[A]                     = unitE(v)
   override def bindM[A, B](m: E[A])(f: A => E[B]): E[B] = bindE(m)(f)
 
-  private def showE(m: E[Value]): String = m match {
+  def showE(m: E[Value]): String = m match {
     case E.Success(a) => s"Success: ${showval(a)}"
     case E.Error(m)   => s"Error: ${m}"
   }
 
-  private def unitE[A](a: A): E[A]       = E.Success(a)
+  def unitE[A](a: A): E[A]               = E.Success(a)
   private def errorE[A](m: String): E[A] = E.Error(m)
 
-  private def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match {
+  def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match {
     case E.Success(a) => f(a)
     case E.Error(m)   => E.Error(m)
   }
 
   override def wrong(message: String): E[Value] =
     errorE(message)
+
+// object InterpreterP extends Interpreter:
+
+//   type M[A] = P[A]
+
+//   import InterpreterE.{E, showE, unitE, bindE}
+//   import Position.pos0
+
+//   type P[A] = Position => E[A]
+
+//   override def showM(m: M[Value]): String               = showP(m)
+//   override def unitM[A](v: A): M[A]                     = unitP(v)
+//   override def bindM[A, B](m: M[A])(f: A => M[B]): M[B] = bindP(m)(f)
+
+//   private def showP(m: M[Value]): String =
+//     val fw1: E[Value] = m(pos0)
+//     showE(fw1)
+
+//   private def unitP[A](v: A): P[A]                     = p => unitE(v)
+//   private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = ???
