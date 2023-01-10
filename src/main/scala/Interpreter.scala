@@ -9,14 +9,14 @@ object Position:
   def apply(p: Int): Position = p
 
 enum Term:
-  case Var(name: Name)          extends Term
-  case Con(i: Int)              extends Term
-  case Add(a: Term, b: Term)    extends Term
-  case Lam(x: Name, e: Term)    extends Term
-  case App(f: Term, t: Term)    extends Term
-  case At(p: Position, t: Term) extends Term
-  case Count                    extends Term
-  case Out(t: Term)             extends Term
+  case Var(name: Name)             extends Term
+  case Con(i: Int)                 extends Term
+  case Add(a: Term, b: Term)       extends Term
+  case Lam(x: Name, e: Term)       extends Term
+  case App(f: Term, t: Term)       extends Term
+  case At(p: Position, t: Term)    extends Term
+  case Count                       extends Term
+  case Out(label: String, t: Term) extends Term
 
 trait TheMonad[M[_]]:
   def showM(m: M[Value]): String
@@ -47,14 +47,14 @@ class Interpreter[M[_]: TheMonad]:
     case Fun(f) => "<function>"
 
   private def interp(t: Term, e: Environment): M[Value] = t match
-    case Var(name) => lookup(name, e)
-    case Con(i)    => m.unitM(Num(i))
-    case Add(a, b) => doAdd(interp(a, e), interp(b, e))
-    case Lam(x, t) => m.unitM(Fun(xx => interp(t, (x, xx) +: e)))
-    case App(f, t) => doApply(interp(f, e), interp(t, e))
-    case At(p, t)  => reset(p, interp(t, e))
-    case Count     => count()
-    case Out(t)    => out(interp(t, e))
+    case Var(name)     => lookup(name, e)
+    case Con(i)        => m.unitM(Num(i))
+    case Add(a, b)     => doAdd(interp(a, e), interp(b, e))
+    case Lam(x, t)     => m.unitM(Fun(xx => interp(t, (x, xx) +: e)))
+    case App(f, t)     => doApply(interp(f, e), interp(t, e))
+    case At(p, t)      => reset(p, interp(t, e))
+    case Count         => count()
+    case Out(label, t) => out(label, interp(t, e))
 
   protected def doAdd(a: M[Value], b: M[Value]): M[Value] =
     // m.bindM(a) { a => m.bindM(b) { b => doAdd(a, b) } }
@@ -92,7 +92,7 @@ class Interpreter[M[_]: TheMonad]:
   protected def count(): M[Value] =
     wrong("cannot count")
 
-  protected def out(m: M[Value]): M[Value] =
+  protected def out(label: String, m: M[Value]): M[Value] =
     wrong("cannot out")
 
 object Interpreter:
@@ -202,7 +202,7 @@ object Interpreter:
     val (lines2, b) = f(a)
     (lines ++ lines2, b)
 
-  def outO(v: Value): O[Unit] = (Seq(showval(v)), ())
+  def outO(label: String, v: Value): O[Unit] = (Seq(s"$label:${showval(v)}"), ())
 
 end Interpreter
 
@@ -244,9 +244,9 @@ class InterpreterS extends Interpreter[S]:
 import Interpreter.{O, given_TheMonad_O}
 class InterpreterO extends Interpreter[O]:
   import Interpreter.outO
-  override protected def out(v: O[Value]): O[Value] =
-    // m.bindM(m.bindM(v) { v => outO(v) }) { _ => v }
+  override protected def out(label: String, v: O[Value]): O[Value] =
+    // m.bindM(m.bindM(v) { v => outO(label,v) }) { _ => v }
     for
       vv <- v
-      x  <- outO(vv)
+      x  <- outO(label, vv)
     yield vv

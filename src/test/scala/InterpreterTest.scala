@@ -11,7 +11,7 @@ class InterpreterTest extends munit.FunSuite {
   val termWrong   = App(Con(1), Con(2))
   val termWrongAt = At(Position(13), App(Con(1), Con(2)))
   val termCount   = Add(Add(Con(1), Con(2)), Count)
-  val termOut     = Add(Out(Con(41)), Out(Con(1)))
+  val termOut     = Add(Out("a", Con(41)), Out("b", Con(1)))
 
   import Interpreter.given
 
@@ -140,7 +140,7 @@ class InterpreterTest extends munit.FunSuite {
     }
 
     test("O out") {
-      assertEquals(interpreterO.testTerm(termOut), "Output: 41;1 Value: 42")
+      assertEquals(interpreterO.testTerm(termOut), "Output: a:41;b:1 Value: 42")
     }
   }
 }
