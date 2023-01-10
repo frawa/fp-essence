@@ -1,9 +1,5 @@
 package fpessence
 
-import fpessence.Interpreter.E
-import fpessence.Interpreter.P
-import fpessence.Interpreter.S
-
 // TODO opaque
 type Name = String
 
@@ -32,9 +28,9 @@ enum Value:
   case Fun[M[Value]](f: Value => M[Value]) extends Value
 
 class Interpreter[M[_]](using TheMonad[M]):
-  final def testTerm(term: Term): String = m.showM(interp(term, Seq()))
-
   protected val m = summon[TheMonad[M]]
+
+  final def testTerm(term: Term): String = m.showM(interp(term, Seq()))
 
   private type Environment = Seq[(Name, Value)]
 
@@ -161,22 +157,27 @@ object Interpreter:
 
   def fetchS: S[State] = s => (s, s)
 
-class InterpreterE extends Interpreter[Interpreter.E](using Interpreter.given_TheMonad_E):
+import Interpreter.{E, given_TheMonad_E}
+class InterpreterE extends Interpreter[E](using given_TheMonad_E):
+  import Interpreter.errorE
   override protected def wrong(message: String): E[Value] =
-    Interpreter.errorE(message)
+    errorE(message)
 
-class InterpreterP extends Interpreter[Interpreter.P](using Interpreter.given_TheMonad_P):
+import Interpreter.{P, given_TheMonad_P}
+class InterpreterP extends Interpreter[P](using given_TheMonad_P):
+  import Interpreter.{resetP, errorP}
   override protected def reset(p: Position, m: P[Value]): P[Value] =
-    Interpreter.resetP(p, m)
+    resetP(p, m)
   override protected def wrong(message: String): P[Value] =
-    Interpreter.errorP(message)
+    errorP(message)
 
-class InterpreterS extends Interpreter[Interpreter.S](using Interpreter.given_TheMonad_S):
-  import Interpreter.{bindS, tickS, fetchS, unitS}
+import Interpreter.{S, given_TheMonad_S}
+class InterpreterS extends Interpreter[S](using given_TheMonad_S):
+  import Interpreter.{tickS, fetchS}
   import Value.Num
   override protected def doAdd(a: S[Value], b: S[Value]): S[Value] =
-    bindS(tickS)(_ => super.doAdd(a, b))
+    m.bindM(tickS)(_ => super.doAdd(a, b))
   override protected def doApply(a: S[Value], b: S[Value]): S[Value] =
-    bindS(tickS)(_ => super.doApply(a, b))
+    m.bindM(tickS)(_ => super.doApply(a, b))
   override protected def count(): S[Value] =
-    bindS(fetchS) { i => unitS(Num(i)) }
+    m.bindM(fetchS) { i => m.unitM(Num(i)) }
