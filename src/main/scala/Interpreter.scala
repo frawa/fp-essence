@@ -30,7 +30,7 @@ enum Value:
   case Num(i: Int)                         extends Value
   case Fun[M[Value]](f: Value => M[Value]) extends Value
 
-class Interpreter[M[_]](using TheMonad[M]):
+class Interpreter[M[_]: TheMonad]:
   protected val m = summon[TheMonad[M]]
 
   final def testTerm(term: Term): String = m.showM(interp(term, Seq()))
@@ -169,13 +169,13 @@ object Interpreter:
   def fetchS: S[State] = s => (s, s)
 
 import Interpreter.{E, given_TheMonad_E}
-class InterpreterE extends Interpreter[E](using given_TheMonad_E):
+class InterpreterE extends Interpreter[E]:
   import Interpreter.errorE
   override protected def wrong(message: String): E[Value] =
     errorE(message)
 
 import Interpreter.{P, given_TheMonad_P}
-class InterpreterP extends Interpreter[P](using given_TheMonad_P):
+class InterpreterP extends Interpreter[P]:
   import Interpreter.{resetP, errorP}
   override protected def reset(p: Position, m: P[Value]): P[Value] =
     resetP(p, m)
@@ -183,7 +183,7 @@ class InterpreterP extends Interpreter[P](using given_TheMonad_P):
     errorP(message)
 
 import Interpreter.{S, given_TheMonad_S}
-class InterpreterS extends Interpreter[S](using given_TheMonad_S):
+class InterpreterS extends Interpreter[S]:
   import Interpreter.{tickS, fetchS}
   import Value.Num
   override protected def doAdd(a: S[Value], b: S[Value]): S[Value] =
