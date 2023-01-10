@@ -19,6 +19,7 @@ enum Term:
   case Lam(x: Name, e: Term)    extends Term
   case App(f: Term, t: Term)    extends Term
   case At(p: Position, t: Term) extends Term
+  case Count                    extends Term
 
 trait TheMonad[M[_]]:
   def showM(m: M[Value]): String
@@ -53,6 +54,7 @@ class Interpreter[M[_]](using TheMonad[M]):
     case Lam(x, t) => m.unitM(Fun(xx => interp(t, (x, xx) +: e)))
     case App(f, t) => doApply(interp(f, e), interp(t, e))
     case At(p, t)  => reset(p, interp(t, e))
+    case Count     => count()
   }
 
   protected def doAdd(a: M[Value], b: M[Value]): M[Value] =
@@ -80,6 +82,9 @@ class Interpreter[M[_]](using TheMonad[M]):
 
   protected def reset(p: Position, m: M[Value]): M[Value] =
     m
+
+  protected def count(): M[Value] =
+    wrong("cannot count")
 
 object Interpreter:
   import Value._
@@ -147,12 +152,14 @@ object Interpreter:
     val (value, count) = m(0)
     s"Value: ${showval(value)}; Count: $count"
 
-  private def unitS[A](v: A): S[A] = s => (v, s)
+  def unitS[A](v: A): S[A] = s => (v, s)
   def bindS[A, B](m: S[A])(f: A => S[B]): S[B] = { s =>
     val (v, s1) = m(s)
     f(v)(s1)
   }
   def tickS: S[Unit] = s => ((), s + 1)
+
+  def fetchS: S[State] = s => (s, s)
 
 class InterpreterE extends Interpreter[Interpreter.E](using Interpreter.given_TheMonad_E):
   override protected def wrong(message: String): E[Value] =
@@ -165,8 +172,11 @@ class InterpreterP extends Interpreter[Interpreter.P](using Interpreter.given_Th
     Interpreter.errorP(message)
 
 class InterpreterS extends Interpreter[Interpreter.S](using Interpreter.given_TheMonad_S):
-  import Interpreter.{bindS, tickS}
+  import Interpreter.{bindS, tickS, fetchS, unitS}
+  import Value.Num
   override protected def doAdd(a: S[Value], b: S[Value]): S[Value] =
     bindS(tickS)(_ => super.doAdd(a, b))
   override protected def doApply(a: S[Value], b: S[Value]): S[Value] =
     bindS(tickS)(_ => super.doApply(a, b))
+  override protected def count(): S[Value] =
+    bindS(fetchS) { i => unitS(Num(i)) }
