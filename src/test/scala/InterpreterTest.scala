@@ -48,4 +48,15 @@ class InterpreterTest extends munit.FunSuite {
   test("P wrong with position") {
     assertEquals(interpreterP.testTerm(term2), "Error: [13]: should be function: 1")
   }
+
+  import Interpreter.S
+  val interpreterS = new InterpreterS
+
+  test("S 42") {
+    assertEquals(interpreterS.testTerm(term0), "Value: 42; Count: 3")
+  }
+
+  test("S wrong") {
+    assertEquals(interpreterS.testTerm(term1), "Value: <wrong>; Count: 1")
+  }
 }

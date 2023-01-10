@@ -2,6 +2,7 @@ package fpessence
 
 import fpessence.Interpreter.E
 import fpessence.Interpreter.P
+import fpessence.Interpreter.S
 
 // TODO opaque
 type Name = String
@@ -48,23 +49,28 @@ class Interpreter[M[_]](using TheMonad[M]):
   private def interp(t: Term, e: Environment): M[Value] = t match {
     case Var(name) => lookup(name, e)
     case Con(i)    => m.unitM(Num(i))
-    case Add(a, b) => m.bindM(interp(a, e)) { a => m.bindM(interp(b, e)) { b => add(a, b) } }
+    case Add(a, b) => doAdd(interp(a, e), interp(b, e))
     case Lam(x, t) => m.unitM(Fun(xx => interp(t, (x, xx) +: e)))
-    case App(f, t) => m.bindM(interp(f, e)) { f => m.bindM(interp(t, e)) { t => apply(f, t) } }
+    case App(f, t) => doApply(interp(f, e), interp(t, e))
     case At(p, t)  => reset(p, interp(t, e))
   }
+
+  protected def doAdd(a: M[Value], b: M[Value]): M[Value] =
+    m.bindM(a) { a => m.bindM(b) { b => doAdd(a, b) } }
+  protected def doApply(f: M[Value], v: M[Value]): M[Value] =
+    m.bindM(f) { f => m.bindM(v) { v => doApply(f, v) } }
 
   private def lookup(name: Name, e: Environment): M[Value] = e match {
     case Nil            => wrong(s"unbound variable: $name")
     case (n, v) :: rest => if n == name then m.unitM(v) else lookup(name, rest)
   }
 
-  private def add(a: Value, b: Value): M[Value] = (a, b) match {
+  final def doAdd(a: Value, b: Value): M[Value] = (a, b) match {
     case (Num(a), Num(b)) => m.unitM(Num(a + b))
     case _                => wrong(s"should be numbers: ${showval(a)}, ${showval(b)}")
   }
 
-  private def apply(f: Value, v: Value): M[Value] = f match {
+  final def doApply(f: Value, v: Value): M[Value] = f match {
     case Fun[M](f) => f(v) // ff.f(v)
     case _         => wrong(s"should be function: ${showval(f)}")
   }
@@ -129,6 +135,25 @@ object Interpreter:
 
   def resetP[A](p: Position, m: P[A]): P[A] = q => m(p)
 
+  type State = Int
+  type S[A]  = State => (A, State)
+
+  given TheMonad[S] with
+    def showM(m: S[Value]): String               = showS(m)
+    def unitM[A](v: A): S[A]                     = unitS(v)
+    def bindM[A, B](m: S[A])(f: A => S[B]): S[B] = bindS(m)(f)
+
+  private def showS(m: S[Value]): String =
+    val (value, count) = m(0)
+    s"Value: ${showval(value)}; Count: $count"
+
+  private def unitS[A](v: A): S[A] = s => (v, s)
+  def bindS[A, B](m: S[A])(f: A => S[B]): S[B] = { s =>
+    val (v, s1) = m(s)
+    f(v)(s1)
+  }
+  def tickS: S[Unit] = s => ((), s + 1)
+
 class InterpreterE extends Interpreter[Interpreter.E](using Interpreter.given_TheMonad_E):
   override protected def wrong(message: String): E[Value] =
     Interpreter.errorE(message)
@@ -138,3 +163,10 @@ class InterpreterP extends Interpreter[Interpreter.P](using Interpreter.given_Th
     Interpreter.resetP(p, m)
   override protected def wrong(message: String): P[Value] =
     Interpreter.errorP(message)
+
+class InterpreterS extends Interpreter[Interpreter.S](using Interpreter.given_TheMonad_S):
+  import Interpreter.{bindS, tickS}
+  override protected def doAdd(a: S[Value], b: S[Value]): S[Value] =
+    bindS(tickS)(_ => super.doAdd(a, b))
+  override protected def doApply(a: S[Value], b: S[Value]): S[Value] =
+    bindS(tickS)(_ => super.doApply(a, b))
