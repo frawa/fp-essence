@@ -11,6 +11,7 @@ class InterpreterTest extends munit.FunSuite {
   val termWrong   = App(Con(1), Con(2))
   val termWrongAt = At(Position(13), App(Con(1), Con(2)))
   val termCount   = Add(Add(Con(1), Con(2)), Count)
+  val termOut     = Add(Out(Con(41)), Out(Con(1)))
 
   import Interpreter.given
 
@@ -33,6 +34,10 @@ class InterpreterTest extends munit.FunSuite {
     test("I count") {
       assertEquals(interpreterI.testTerm(termCount), "<wrong>")
     }
+
+    test("I out") {
+      assertEquals(interpreterI.testTerm(termOut), "<wrong>")
+    }
   }
 
   {
@@ -53,6 +58,10 @@ class InterpreterTest extends munit.FunSuite {
 
     test("E count") {
       assertEquals(interpreterE.testTerm(termCount), "Error: cannot count")
+    }
+
+    test("E out") {
+      assertEquals(interpreterE.testTerm(termOut), "Error: cannot out")
     }
   }
 
@@ -79,6 +88,10 @@ class InterpreterTest extends munit.FunSuite {
     test("P count") {
       assertEquals(interpreterP.testTerm(termCount), "Error: [0]: cannot count")
     }
+
+    test("P cout") {
+      assertEquals(interpreterP.testTerm(termOut), "Error: [0]: cannot out")
+    }
   }
 
   {
@@ -99,6 +112,35 @@ class InterpreterTest extends munit.FunSuite {
 
     test("S count") {
       assertEquals(interpreterS.testTerm(termCount), "Value: 5; Count: 2")
+    }
+
+    test("S out") {
+      assertEquals(interpreterS.testTerm(termOut), "Value: <wrong>; Count: 1")
+    }
+  }
+
+  {
+    import Interpreter.O
+    val interpreterO = new InterpreterO
+
+    test("O 42") {
+      assertEquals(interpreterO.testTerm(term42), "Output:  Value: 42")
+    }
+
+    test("O wrong") {
+      assertEquals(interpreterO.testTerm(termWrong), "Output:  Value: <wrong>")
+    }
+
+    test("O at") {
+      assertEquals(interpreterO.testTerm(termWrongAt), "Output:  Value: <wrong>")
+    }
+
+    test("O count") {
+      assertEquals(interpreterO.testTerm(termCount), "Output:  Value: <wrong>")
+    }
+
+    test("O out") {
+      assertEquals(interpreterO.testTerm(termOut), "Output: 41;1 Value: 42")
     }
   }
 }

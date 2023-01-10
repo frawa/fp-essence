@@ -16,6 +16,7 @@ enum Term:
   case App(f: Term, t: Term)    extends Term
   case At(p: Position, t: Term) extends Term
   case Count                    extends Term
+  case Out(t: Term)             extends Term
 
 trait TheMonad[M[_]]:
   def showM(m: M[Value]): String
@@ -53,6 +54,7 @@ class Interpreter[M[_]: TheMonad]:
     case App(f, t) => doApply(interp(f, e), interp(t, e))
     case At(p, t)  => reset(p, interp(t, e))
     case Count     => count()
+    case Out(t)    => out(interp(t, e))
 
   protected def doAdd(a: M[Value], b: M[Value]): M[Value] =
     // m.bindM(a) { a => m.bindM(b) { b => doAdd(a, b) } }
@@ -90,8 +92,13 @@ class Interpreter[M[_]: TheMonad]:
   protected def count(): M[Value] =
     wrong("cannot count")
 
+  protected def out(m: M[Value]): M[Value] =
+    wrong("cannot out")
+
 object Interpreter:
   import Value._
+
+  // --- I
 
   type I[A] = A
 
@@ -107,6 +114,8 @@ object Interpreter:
 
   def showpos(p: Position): String =
     s"[$p]"
+
+  // --- E
 
   enum E[A]:
     case Success(a: A)          extends E[A]
@@ -126,6 +135,8 @@ object Interpreter:
   private def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match
     case E.Success(a) => f(a)
     case E.Error(m)   => E.Error(m)
+
+  // --- P
 
   type P[A] = Position => E[A]
 
@@ -147,6 +158,8 @@ object Interpreter:
 
   def resetP[A](p: Position, m: P[A]): P[A] = q => m(p)
 
+  // --- S
+
   type State = Int
   type S[A]  = State => (A, State)
 
@@ -167,6 +180,31 @@ object Interpreter:
   def tickS: S[Unit] = s => ((), s + 1)
 
   def fetchS: S[State] = s => (s, s)
+
+  // --- O
+
+  type O[A] = (Seq[String], A)
+
+  given TheMonad[O] with
+    def showM(m: O[Value]): String               = showO(m)
+    def unitM[A](v: A): O[A]                     = unitO(v)
+    def bindM[A, B](m: O[A])(f: A => O[B]): O[B] = bindO(m)(f)
+
+  private def showO(m: O[Value]): String =
+    val (lines, v) = m
+    s"Output: ${lines.mkString(";")} Value: ${showval(v)}"
+
+  private def unitO[A](v: A): O[A] =
+    (Seq(), v)
+
+  private def bindO[A, B](m: O[A])(f: A => O[B]): O[B] =
+    val (lines, a)  = m
+    val (lines2, b) = f(a)
+    (lines ++ lines2, b)
+
+  def outO(v: Value): O[Unit] = (Seq(showval(v)), ())
+
+end Interpreter
 
 import Interpreter.{E, given_TheMonad_E}
 class InterpreterE extends Interpreter[E]:
@@ -202,3 +240,13 @@ class InterpreterS extends Interpreter[S]:
     // m.bindM(fetchS) { i => m.unitM(Num(i)) }
     for i <- fetchS
     yield Num(i)
+
+import Interpreter.{O, given_TheMonad_O}
+class InterpreterO extends Interpreter[O]:
+  import Interpreter.outO
+  override protected def out(v: O[Value]): O[Value] =
+    // m.bindM(m.bindM(v) { v => outO(v) }) { _ => v }
+    for
+      vv <- v
+      x  <- outO(vv)
+    yield vv
