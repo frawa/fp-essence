@@ -40,13 +40,12 @@ class Interpreter[M[_]](using TheMonad[M]):
   import Term._
   import Value._
 
-  protected def showval(v: Value): String = v match {
+  protected def showval(v: Value): String = v match
     case Wrong  => "<wrong>"
     case Num(i) => s"$i"
     case Fun(f) => "<function>"
-  }
 
-  private def interp(t: Term, e: Environment): M[Value] = t match {
+  private def interp(t: Term, e: Environment): M[Value] = t match
     case Var(name) => lookup(name, e)
     case Con(i)    => m.unitM(Num(i))
     case Add(a, b) => doAdd(interp(a, e), interp(b, e))
@@ -54,37 +53,33 @@ class Interpreter[M[_]](using TheMonad[M]):
     case App(f, t) => doApply(interp(f, e), interp(t, e))
     case At(p, t)  => reset(p, interp(t, e))
     case Count     => count()
-  }
 
   protected def doAdd(a: M[Value], b: M[Value]): M[Value] =
     // m.bindM(a) { a => m.bindM(b) { b => doAdd(a, b) } }
-    for {
+    for
       aa <- a
       bb <- b
       r  <- doAdd(aa, bb)
-    } yield r
+    yield r
   protected def doApply(f: M[Value], v: M[Value]): M[Value] =
     // m.bindM(f) { f => m.bindM(v) { v => doApply(f, v) } }
-    for {
+    for
       ff <- f
       vv <- v
       r  <- doApply(ff, vv)
-    } yield r
+    yield r
 
-  private def lookup(name: Name, e: Environment): M[Value] = e match {
+  private def lookup(name: Name, e: Environment): M[Value] = e match
     case Nil            => wrong(s"unbound variable: $name")
     case (n, v) :: rest => if n == name then m.unitM(v) else lookup(name, rest)
-  }
 
-  final def doAdd(a: Value, b: Value): M[Value] = (a, b) match {
+  final def doAdd(a: Value, b: Value): M[Value] = (a, b) match
     case (Num(a), Num(b)) => m.unitM(Num(a + b))
     case _                => wrong(s"should be numbers: ${showval(a)}, ${showval(b)}")
-  }
 
-  final def doApply(f: Value, v: Value): M[Value] = f match {
+  final def doApply(f: Value, v: Value): M[Value] = f match
     case Fun[M](f) => f(v) // ff.f(v)
     case _         => wrong(s"should be function: ${showval(f)}")
-  }
 
   protected def wrong(message: String): M[Value] =
     m.unitM(Wrong)
@@ -105,11 +100,10 @@ object Interpreter:
     def unitM[A](v: A): I[A]                     = v
     def bindM[A, B](m: I[A])(f: A => I[B]): I[B] = f(m)
 
-  def showval(v: Value): String = v match {
+  def showval(v: Value): String = v match
     case Wrong  => "<wrong>"
     case Num(i) => s"$i"
     case Fun(f) => "<function>"
-  }
 
   def showpos(p: Position): String =
     s"[$p]"
@@ -123,16 +117,15 @@ object Interpreter:
     def unitM[A](v: A): E[A]                     = unitE(v)
     def bindM[A, B](m: E[A])(f: A => E[B]): E[B] = bindE(m)(f)
 
-  private def showE(m: E[Value]): String = m match {
+  private def showE(m: E[Value]): String = m match
     case E.Success(a) => s"Success: ${showval(a)}"
     case E.Error(m)   => s"Error: ${m}"
-  }
+
   private def unitE[A](a: A): E[A] = E.Success(a)
   def errorE[A](m: String): E[A]   = E.Error(m)
-  private def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match {
+  private def bindE[A, B](m: E[A])(f: A => E[B]): E[B] = m match
     case E.Success(a) => f(a)
     case E.Error(m)   => E.Error(m)
-  }
 
   type P[A] = Position => E[A]
 
@@ -147,10 +140,10 @@ object Interpreter:
   private def unitP[A](v: A): P[A] = p => unitE(v)
   private def bindP[A, B](m: P[A])(f: A => P[B]): P[B] = p =>
     // bindE(m(p))(x => f(x)(p))
-    for {
+    for
       x <- m(p)
       r <- f(x)(p)
-    } yield r
+    yield r
 
   def resetP[A](p: Position, m: P[A]): P[A] = q => m(p)
 
@@ -167,10 +160,10 @@ object Interpreter:
     s"Value: ${showval(value)}; Count: $count"
 
   def unitS[A](v: A): S[A] = s => (v, s)
-  def bindS[A, B](m: S[A])(f: A => S[B]): S[B] = { s =>
+  def bindS[A, B](m: S[A])(f: A => S[B]): S[B] = s =>
     val (v, s1) = m(s)
     f(v)(s1)
-  }
+
   def tickS: S[Unit] = s => ((), s + 1)
 
   def fetchS: S[State] = s => (s, s)
@@ -195,18 +188,17 @@ class InterpreterS extends Interpreter[S](using given_TheMonad_S):
   import Value.Num
   override protected def doAdd(a: S[Value], b: S[Value]): S[Value] =
     // m.bindM(tickS)(_ => super.doAdd(a, b))
-    for {
+    for
       _ <- tickS
       r <- super.doAdd(a, b)
-    } yield r
+    yield r
   override protected def doApply(f: S[Value], v: S[Value]): S[Value] =
     // m.bindM(tickS)(_ => super.doApply(f, v))
-    for {
+    for
       _ <- tickS
       r <- super.doApply(f, v)
-    } yield r
+    yield r
   override protected def count(): S[Value] =
     // m.bindM(fetchS) { i => m.unitM(Num(i)) }
-    for {
-      i <- fetchS
-    } yield Num(i)
+    for i <- fetchS
+    yield Num(i)
