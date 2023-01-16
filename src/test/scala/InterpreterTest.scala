@@ -42,7 +42,7 @@ class InterpreterTest extends munit.FunSuite {
 
   {
     import Interpreter.E
-    val interpreterE = new InterpreterE
+    val interpreterE = Interpreter[E]
 
     test("E 42") {
       assertEquals(interpreterE.testTerm(term42), "Success: 42")
@@ -67,7 +67,7 @@ class InterpreterTest extends munit.FunSuite {
 
   {
     import Interpreter.P
-    val interpreterP = new InterpreterP
+    val interpreterP = Interpreter[P]
 
     test("P 42") {
       assertEquals(interpreterP.testTerm(term42), "Success: 42")
@@ -96,7 +96,7 @@ class InterpreterTest extends munit.FunSuite {
 
   {
     import Interpreter.S
-    val interpreterS = new InterpreterS
+    val interpreterS = Interpreter[S]
 
     test("S 42") {
       assertEquals(interpreterS.testTerm(term42), "Value: 42; Count: 3")
@@ -121,7 +121,7 @@ class InterpreterTest extends munit.FunSuite {
 
   {
     import Interpreter.O
-    val interpreterO = new InterpreterO
+    val interpreterO = Interpreter[O]
 
     test("O 42") {
       assertEquals(interpreterO.testTerm(term42), "Output:  Value: 42")
