@@ -28,15 +28,8 @@ impl<A> M<A> {
     }
 }
 
-// #[derive(Copy, Clone)]
-// #[derive(Debug)]
-// #[derive(PartialEq)]
 struct FunBox(Rc<dyn Fn(Value) -> M<Value>>);
 
-// #[derive(Copy)]
-// #[derive(Clone)]
-// #[derive(Debug)]
-// #[derive(PartialEq)]
 enum Value {
     Wrong,
     Num(i32),
@@ -86,10 +79,6 @@ use Value::*;
 struct Interpreter;
 
 impl Interpreter {
-    // type M<A>;
-
-    // fn unit_M<A>(a: A) -> M<A>;
-
     fn interp(t: &Box<Term>, e: &Environment) -> M<Value> {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
