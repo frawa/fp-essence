@@ -1,15 +1,39 @@
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 use std::{collections::HashMap, rc::Rc};
 
 type Name = String;
 
 #[derive(Clone)]
-enum Term {
+pub enum Term {
     Var(String),
     Con(i32),
     Add(Box<Term>, Box<Term>),
     Lam(Name, Box<Term>),
     App(Box<Term>, Box<Term>),
+}
+
+impl Display for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Var(x) => write!(f, "{}", x),
+            Con(x) => write!(f, "{}", x),
+            Add(a, b) => write!(f, "({}+{})", a, b),
+            Lam(x, t) => write!(f, "(\\{}->{})", x, t),
+            App(ff, t) => write!(f, "{} {}", ff, t),
+        }
+    }
+}
+
+impl Debug for Term {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Var(x) => write!(f, "Var({:?})", x),
+            Con(x) => write!(f, "Con({:?})", x),
+            Add(a, b) => write!(f, "Add({:?},{:?})", a, b),
+            Lam(x, t) => write!(f, "Lam({:?},{:?})", x, t),
+            App(ff, t) => write!(f, "App({:?},{:?})", ff, t),
+        }
+    }
 }
 
 struct M<A> {
@@ -25,6 +49,12 @@ impl<A> M<A> {
     }
     fn bind<B>(m: &M<A>, f: impl Fn(&A) -> M<B>) -> M<B> {
         f(&m.a)
+    }
+}
+
+impl M<Value> {
+    fn show(self: &Self) -> String {
+        Interpreter::showval(self.a.as_ref())
     }
 }
 
@@ -76,9 +106,22 @@ type Environment = HashMap<Name, Rc<Value>>;
 use Term::*;
 use Value::*;
 
-struct Interpreter;
+pub struct Interpreter;
 
 impl Interpreter {
+    pub fn test(t: &Box<Term>) -> String {
+        let e = Environment::new();
+        Self::interp(t, &e).show()
+    }
+
+    fn showval(v: &Value) -> String {
+        match v {
+            Wrong => "Wrong".to_string(),
+            Num(x) => x.to_string(),
+            Fun(_) => "<fun>".to_string(),
+        }
+    }
+
     fn interp(t: &Box<Term>, e: &Environment) -> M<Value> {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
@@ -137,8 +180,7 @@ impl Interpreter {
 #[cfg(test)]
 mod tests {
 
-    use crate::Environment;
-
+    use super::Environment;
     use super::Interpreter;
     use super::Term;
     use super::Term::*;
