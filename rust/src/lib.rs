@@ -13,12 +13,15 @@ enum Term {
 }
 
 struct M<A> {
-    a: A,
+    a: Rc<A>,
 }
 
 impl<A> M<A> {
-    fn unit_M(a: A) -> M<A> {
-        M { a }
+    fn unit_M(a: &Rc<A>) -> M<A> {
+        M { a: a.clone() }
+    }
+    fn unit__M(a: A) -> M<A> {
+        M { a: Rc::new(a) }
     }
     fn bind_M<B>(m: &M<A>, f: impl Fn(&A) -> M<B>) -> M<B> {
         f(&m.a)
@@ -90,11 +93,11 @@ impl Interpreter {
     fn interp(t: &Box<Term>, e: &Environment) -> M<Value> {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
-            Con(i) => M::unit_M(Num(i.clone())),
+            Con(i) => M::unit__M(Num(i.clone())),
             Add(a, b) => Self::add_M(&Self::interp(a, e), &Self::interp(b, e)),
             Lam(x, tt) => {
                 let fun = Self::interp_fun(x, tt, e);
-                M::unit_M(fun)
+                M::unit__M(fun)
             }
             App(f, t) => Self::apply_M(&Self::interp(f, e), &Self::interp(t, e)),
         }
@@ -122,7 +125,7 @@ impl Interpreter {
             (Num(a), Num(b)) => Num(a + b),
             _ => Wrong,
         };
-        M::unit_M(result)
+        M::unit__M(result)
     }
 
     fn apply_M(f: &M<Value>, t: &M<Value>) -> M<Value> {
@@ -132,13 +135,16 @@ impl Interpreter {
     fn apply(f: &Value, t: &Value) -> M<Value> {
         match f {
             Fun(fun) => (*fun.0)(t.clone()),
-            _ => M::unit_M(Wrong),
+            _ => M::unit__M(Wrong),
         }
     }
 
     fn lookup(name: &String, e: &Environment) -> M<Value> {
-        // e.get(name).map(|v| v.clone()).unwrap_or(Wrong);
-        M::unit_M(Wrong)
+        let fw = e
+            .get(name)
+            .map(|v| M::unit_M(v))
+            .unwrap_or(M::unit__M(Wrong));
+        fw
     }
 }
 
@@ -171,6 +177,6 @@ mod tests {
         let t = Box::new(term42());
         let e = Environment::new();
         let actual = Interpreter::interp(&t, &e);
-        assert_eq!(actual.a, Num(13));
+        assert_eq!(actual.a.as_ref(), &Num(42));
     }
 }
