@@ -136,14 +136,13 @@ impl Interpreter {
     }
 
     fn interp_fun(x: &String, t: &Box<Term>, e: &Environment) -> Value {
-        let x1 = x.clone();
-        let t1 = t.clone();
-        let e1 = e.clone();
-        let fun = Value::new_fun(move |xx| {
-            let fw = Rc::new(xx);
-            let mut e2 = e1.clone();
-            e2.insert(x1.clone(), fw);
-            Self::interp(&t1, &e2)
+        let x = x.clone(); // TODO clone less
+        let t = t.clone();
+        let e = e.clone();
+        let fun = Value::new_fun(move |v| {
+            let mut e = e.clone();
+            e.insert(x.clone(), Rc::new(v));
+            Self::interp(&t, &e)
         });
         fun
     }
