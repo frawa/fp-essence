@@ -17,13 +17,13 @@ struct M<A> {
 }
 
 impl<A> M<A> {
-    fn unit_M(a: &Rc<A>) -> M<A> {
+    fn unit_rc(a: &Rc<A>) -> M<A> {
         M { a: a.clone() }
     }
-    fn unit__M(a: A) -> M<A> {
+    fn unit(a: A) -> M<A> {
         M { a: Rc::new(a) }
     }
-    fn bind_M<B>(m: &M<A>, f: impl Fn(&A) -> M<B>) -> M<B> {
+    fn bind<B>(m: &M<A>, f: impl Fn(&A) -> M<B>) -> M<B> {
         f(&m.a)
     }
 }
@@ -82,11 +82,11 @@ impl Interpreter {
     fn interp(t: &Box<Term>, e: &Environment) -> M<Value> {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
-            Con(i) => M::unit__M(Num(i.clone())),
+            Con(i) => M::unit(Num(i.clone())),
             Add(a, b) => Self::add_M(&Self::interp(a, e), &Self::interp(b, e)),
             Lam(x, tt) => {
                 let fun = Self::interp_fun(x, tt, e);
-                M::unit__M(fun)
+                M::unit(fun)
             }
             App(f, t) => Self::apply_M(&Self::interp(f, e), &Self::interp(t, e)),
         }
@@ -106,7 +106,7 @@ impl Interpreter {
     }
 
     fn add_M(a: &M<Value>, b: &M<Value>) -> M<Value> {
-        M::bind_M(a, |a| M::bind_M(b, |b| Self::add_value(a, b)))
+        M::bind(a, |a| M::bind(b, |b| Self::add_value(a, b)))
     }
 
     fn add_value(a: &Value, b: &Value) -> M<Value> {
@@ -114,25 +114,22 @@ impl Interpreter {
             (Num(a), Num(b)) => Num(a + b),
             _ => Wrong,
         };
-        M::unit__M(result)
+        M::unit(result)
     }
 
     fn apply_M(f: &M<Value>, t: &M<Value>) -> M<Value> {
-        M::bind_M(f, |f| M::bind_M(t, |t| Self::apply(f, t)))
+        M::bind(f, |f| M::bind(t, |t| Self::apply(f, t)))
     }
 
     fn apply(f: &Value, t: &Value) -> M<Value> {
         match f {
             Fun(fun) => (*fun.0)(t.clone()),
-            _ => M::unit__M(Wrong),
+            _ => M::unit(Wrong),
         }
     }
 
     fn lookup(name: &String, e: &Environment) -> M<Value> {
-        let fw = e
-            .get(name)
-            .map(|v| M::unit_M(v))
-            .unwrap_or(M::unit__M(Wrong));
+        let fw = e.get(name).map(|v| M::unit_rc(v)).unwrap_or(M::unit(Wrong));
         fw
     }
 }
