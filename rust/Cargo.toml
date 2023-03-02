@@ -1,5 +1,5 @@
 [package]
-name = "fp-essence"
+name = "fp_essence"
 version = "0.1.0"
 edition = "2021"
 

@@ -126,12 +126,12 @@ impl Interpreter {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
             Con(i) => M::unit(Num(i.clone())),
-            Add(a, b) => Self::add_M(&Self::interp(a, e), &Self::interp(b, e)),
+            Add(a, b) => Self::add(&Self::interp(a, e), &Self::interp(b, e)),
             Lam(x, tt) => {
                 let fun = Self::interp_fun(x, tt, e);
                 M::unit(fun)
             }
-            App(f, t) => Self::apply_M(&Self::interp(f, e), &Self::interp(t, e)),
+            App(f, t) => Self::apply(&Self::interp(f, e), &Self::interp(t, e)),
         }
     }
 
@@ -147,7 +147,7 @@ impl Interpreter {
         fun
     }
 
-    fn add_M(a: &M<Value>, b: &M<Value>) -> M<Value> {
+    fn add(a: &M<Value>, b: &M<Value>) -> M<Value> {
         M::bind(a, |a| M::bind(b, |b| Self::add_value(a, b)))
     }
 
@@ -159,11 +159,11 @@ impl Interpreter {
         M::unit(result)
     }
 
-    fn apply_M(f: &M<Value>, t: &M<Value>) -> M<Value> {
-        M::bind(f, |f| M::bind(t, |t| Self::apply(f, t)))
+    fn apply(f: &M<Value>, t: &M<Value>) -> M<Value> {
+        M::bind(f, |f| M::bind(t, |t| Self::apply_value(f, t)))
     }
 
-    fn apply(f: &Value, t: &Value) -> M<Value> {
+    fn apply_value(f: &Value, t: &Value) -> M<Value> {
         match f {
             Fun(fun) => (*fun.0)(t.clone()),
             _ => M::unit(Wrong),

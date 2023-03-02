@@ -1,6 +1,6 @@
-mod lib;
+mod fp_essence;
 
-use lib::{Interpreter, Term, Term::*};
+use fp_essence::{Interpreter, Term, Term::*};
 
 fn main() {
     let t = Box::new(term42());
