@@ -87,9 +87,7 @@ enum Value {
 
 impl Value {
     fn new_fun(f: impl Fn(Value) -> M<Value> + 'static) -> Self {
-        let fw1 = f;
-        let fw2 = Box::new(fw1);
-        Self::Fun(FunBox(fw2))
+        Self::Fun(FunBox(Box::new(f)))
     }
 
     fn showval(v: &Value) -> String {
@@ -141,20 +139,20 @@ pub struct Interpreter();
 impl Interpreter {
     pub fn test(t: &Box<Term>) -> String {
         let e = Environment::new();
-        let v = Interpreter::interp(t, &e); //.bind(|v| M::unit(*v));
+        let v = Self::interp(t, &e); //.bind(|v| M::unit(*v));
         <M<Value>>::show(&v)
     }
 
     fn interp(t: &Box<Term>, e: &Environment) -> <I<Value> as TheMonad>::TheM<Value> {
         match t.as_ref() {
-            Var(name) => Interpreter::lookup(name, e),
+            Var(name) => Self::lookup(name, e),
             Con(i) => M::unit(Num(i.clone())),
-            Add(a, b) => Interpreter::add(&Interpreter::interp(a, e), &Interpreter::interp(b, e)),
+            Add(a, b) => Self::add(&Self::interp(a, e), &Self::interp(b, e)),
             Lam(x, tt) => {
-                let fun = Interpreter::interp_fun(x, tt, e);
+                let fun = Self::interp_fun(x, tt, e);
                 M::unit(fun)
             }
-            App(f, t) => Interpreter::apply(&Interpreter::interp(f, e), &Interpreter::interp(t, e)),
+            App(f, t) => Self::apply(&Self::interp(f, e), &Self::interp(t, e)),
         }
     }
 
@@ -165,16 +163,14 @@ impl Interpreter {
 
         let fun = Value::new_fun(move |v| {
             let mut e = e.clone();
-            let fw1 = x.clone();
-            let fw2 = Rc::new(v);
-            e.insert(fw1, fw2);
-            Interpreter::interp(&t, &e)
+            e.insert(x.clone(), Rc::new(v));
+            Self::interp(&t, &e)
         });
         fun
     }
 
     fn add(a: &M<Value>, b: &M<Value>) -> M<Value> {
-        a.bind(|a| b.bind(|b| Interpreter::add_value(a, b)))
+        a.bind(|a| b.bind(|b| Self::add_value(a, b)))
     }
 
     fn add_value(a: &Value, b: &Value) -> M<Value> {
@@ -186,7 +182,7 @@ impl Interpreter {
     }
 
     fn apply(f: &M<Value>, t: &M<Value>) -> M<Value> {
-        f.bind(|f| t.bind(|t| Interpreter::apply_value(f, t)))
+        f.bind(|f| t.bind(|t| Self::apply_value(f, t)))
     }
 
     fn apply_value(f: &Value, t: &Value) -> M<Value> {
@@ -225,7 +221,7 @@ mod tests {
     }
 
     #[test]
-    fn first() {
+    fn test_term42() {
         let t = Box::new(term42());
         let actual = Interpreter::test(&t);
         assert_eq!(actual, "42");
