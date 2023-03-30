@@ -1,10 +1,12 @@
 mod fp_essence;
 
-use fp_essence::{Interpreter, Term, Term::*};
+use fp_essence::{Interpreter, Term, Term::*, Value, I};
 
 fn main() {
     let t = Box::new(term42());
-    let tested = Interpreter::test(&t);
+    let dummy = I::dummy();
+    let interpreter = Interpreter::<I<Value>>(dummy);
+    let tested = interpreter.test(&t);
     println!("{} for {}, aka {:?}", tested, t, t)
 }
 

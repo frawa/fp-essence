@@ -36,7 +36,7 @@ impl Debug for Term {
     }
 }
 
-trait TheMonad {
+pub trait TheMonad {
     type TheA;
     type TheM<B>: TheMonad;
 
@@ -49,8 +49,14 @@ trait TheMonad {
     fn show(v: &Self::TheM<Value>) -> String;
 }
 
-struct I<A> {
+pub struct I<A> {
     a: Rc<A>,
+}
+
+impl I<Value> {
+    pub fn dummy() -> Self {
+        I { a: Rc::new(Wrong) }
+    }
 }
 
 impl<A> TheMonad for I<A> {
@@ -75,11 +81,61 @@ impl<A> TheMonad for I<A> {
     }
 }
 
+impl E<Value> {
+    pub fn dummy() -> Self {
+        E {
+            e: Rc::new(Ok(Rc::new(Wrong))),
+        }
+    }
+}
+
+pub struct E<A> {
+    e: Rc<Result<Rc<A>, String>>,
+}
+
+use Result::Ok;
+
+impl<A> TheMonad for E<A> {
+    type TheA = A;
+    type TheM<B> = E<B>;
+
+    fn unit_rc(a: &Rc<Value>) -> Self::TheM<Value> {
+        E {
+            e: Rc::new(Ok(a.clone())),
+        }
+    }
+    fn unit(a: Self::TheA) -> Self {
+        E {
+            e: Rc::new(Ok(Rc::new(a))),
+        }
+    }
+    fn bind<B, F>(&self, f: F) -> Self::TheM<B>
+    where
+        F: Fn(&A) -> Self::TheM<B>,
+    {
+        let e = self.e.as_ref();
+        match e {
+            Ok(a) => f(&a),
+            Err(err) => E {
+                e: Rc::new(Err(err.clone())),
+            },
+        }
+    }
+
+    fn show(v: &Self::TheM<Value>) -> String {
+        let e = v.e.as_ref();
+        match e {
+            Ok(a) => Value::showval(&a),
+            Err(err) => err.clone(),
+        }
+    }
+}
+
 // TODO change currently used TheMonad impl here
 type M<A> = I<A>;
-struct FunBox(Box<dyn Fn(Value) -> M<Value>>);
+pub struct FunBox(Box<dyn Fn(Value) -> M<Value>>);
 
-enum Value {
+pub enum Value {
     Wrong,
     Num(i32),
     Fun(FunBox),
@@ -134,10 +190,10 @@ use Value::*;
 
 type Environment = HashMap<Name, Rc<Value>>;
 
-pub struct Interpreter();
+pub struct Interpreter<MM: TheMonad>(pub MM);
 
-impl Interpreter {
-    pub fn test(t: &Box<Term>) -> String {
+impl<MM: TheMonad> Interpreter<MM> {
+    pub fn test(&self, t: &Box<Term>) -> String {
         let e = Environment::new();
         let v = Self::interp(t, &e); //.bind(|v| M::unit(*v));
         <M<Value>>::show(&v)
@@ -205,6 +261,9 @@ mod tests {
     use super::Interpreter;
     use super::Term;
     use super::Term::*;
+    use super::Value;
+    use super::E;
+    use super::I;
 
     fn term42() -> Term {
         let x = "x";
@@ -220,10 +279,34 @@ mod tests {
         )
     }
 
+    fn term_wrong() -> Term {
+        App(Box::new(Con(1)), Box::new(Con(2)))
+    }
+
     #[test]
-    fn test_term42() {
+    fn test_i_term42() {
         let t = Box::new(term42());
-        let actual = Interpreter::test(&t);
+        let dummy = I::dummy();
+        let interpreter = Interpreter::<I<Value>>(dummy);
+        let actual = interpreter.test(&t);
         assert_eq!(actual, "42");
+    }
+
+    #[test]
+    fn test_e_term42() {
+        let t = Box::new(term42());
+        let dummy = E::dummy();
+        let interpreter = Interpreter::<E<Value>>(dummy);
+        let actual = interpreter.test(&t);
+        assert_eq!(actual, "42");
+    }
+
+    #[test]
+    fn test_e_term_wrong() {
+        let t = Box::new(term_wrong());
+        let dummy = E::dummy();
+        let interpreter = Interpreter::<E<Value>>(dummy);
+        let actual = interpreter.test(&t);
+        assert_eq!(actual, "Wrong");
     }
 }
