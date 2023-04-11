@@ -47,6 +47,8 @@ pub trait TheMonad {
         F: Fn(&Self::TheA) -> Self::TheM<B>;
 
     fn show(v: &Self::TheM<Value>) -> String;
+
+    fn wrong(message: &str) -> Self::TheM<Value>;
 }
 
 pub struct I<A> {
@@ -79,10 +81,14 @@ impl<A> TheMonad for I<A> {
     fn show(v: &Self::TheM<Value>) -> String {
         Value::showval(&v.a)
     }
+
+    fn wrong(_message: &str) -> Self::TheM<Value> {
+        Self::unit_rc(&Rc::new(Wrong))
+    }
 }
 
 impl E<Value> {
-    pub fn dummy() -> Self {
+    fn _dummy() -> Self {
         E {
             e: Rc::new(Ok(Rc::new(Wrong))),
         }
@@ -130,10 +136,17 @@ impl<A> TheMonad for E<A> {
             Err(err) => format!("Error: {}", err),
         }
     }
+
+    fn wrong(message: &str) -> Self::TheM<Value> {
+        E {
+            e: Rc::new(Err(message.to_string())),
+        }
+    }
 }
 
 // TODO change currently used TheMonad impl here
-type M<A> = I<A>;
+// type M<A> = I<A>;
+type M<A> = E<A>;
 pub struct FunBox(Box<dyn Fn(Value) -> M<Value>>);
 
 pub enum Value {
@@ -200,7 +213,7 @@ impl<MM: TheMonad> Interpreter<MM> {
         <M<Value>>::show(&v)
     }
 
-    fn interp(t: &Box<Term>, e: &Environment) -> <I<Value> as TheMonad>::TheM<Value> {
+    fn interp(t: &Box<Term>, e: &Environment) -> <M<Value> as TheMonad>::TheM<Value> {
         match t.as_ref() {
             Var(name) => Self::lookup(name, e),
             Con(i) => M::unit(Num(i.clone())),
@@ -231,11 +244,17 @@ impl<MM: TheMonad> Interpreter<MM> {
     }
 
     fn add_value(a: &Value, b: &Value) -> M<Value> {
-        let result = match (a, b) {
-            (Num(a), Num(b)) => Num(a + b),
-            _ => Wrong,
-        };
-        M::unit(result)
+        match (a, b) {
+            (Num(a), Num(b)) => <M<Value>>::unit(Num(a + b)),
+            _ => <M<Value>>::wrong(
+                format!(
+                    "should be numbers: {}, {}",
+                    Value::showval(a).as_str(),
+                    Value::showval(b).as_str()
+                )
+                .as_str(),
+            ),
+        }
     }
 
     fn apply(f: &M<Value>, t: &M<Value>) -> M<Value> {
@@ -245,14 +264,16 @@ impl<MM: TheMonad> Interpreter<MM> {
     fn apply_value(f: &Value, t: &Value) -> M<Value> {
         match f {
             Fun(fun) => (*fun.0)(t.clone()),
-            _ => M::unit(Wrong),
+            _ => <M<Value>>::wrong(
+                format!("should be function: {}", Value::showval(f).as_str()).as_str(),
+            ),
         }
     }
 
     fn lookup(name: &String, e: &Environment) -> M<Value> {
         e.get(name)
             .map(|v| <M<Value>>::unit_rc(v))
-            .unwrap_or(M::unit(Wrong))
+            .unwrap_or(<M<Value>>::wrong(format!("missing {}", name).as_str()))
     }
 }
 
@@ -284,19 +305,19 @@ mod tests {
         App(Box::new(Con(1)), Box::new(Con(2)))
     }
 
-    #[test]
-    fn test_i_term42() {
-        let t = Box::new(term42());
-        let dummy = I::dummy();
-        let interpreter = Interpreter::<I<Value>>(dummy);
-        let actual = interpreter.test(&t);
-        assert_eq!(actual, "42");
-    }
+    // #[test]
+    // fn test_i_term42() {
+    //     let t = Box::new(term42());
+    //     let dummy = I::dummy();
+    //     let interpreter = Interpreter::<I<Value>>(dummy);
+    //     let actual = interpreter.test(&t);
+    //     assert_eq!(actual, "42");
+    // }
 
     #[test]
     fn test_e_term42() {
         let t = Box::new(term42());
-        let dummy = E::dummy();
+        let dummy = E::_dummy();
         let interpreter = Interpreter::<E<Value>>(dummy);
         let actual = interpreter.test(&t);
         assert_eq!(actual, "Success: 42");
@@ -305,9 +326,9 @@ mod tests {
     #[test]
     fn test_e_term_wrong() {
         let t = Box::new(term_wrong());
-        let dummy = E::dummy();
+        let dummy = E::_dummy();
         let interpreter = Interpreter::<E<Value>>(dummy);
         let actual = interpreter.test(&t);
-        assert_eq!(actual, "Error: Wrong");
+        assert_eq!(actual, "Error: should be function: 1");
     }
 }
