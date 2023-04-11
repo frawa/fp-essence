@@ -89,6 +89,7 @@ impl E<Value> {
     }
 }
 
+#[derive(Debug)]
 pub struct E<A> {
     e: Rc<Result<Rc<A>, String>>,
 }
@@ -125,8 +126,8 @@ impl<A> TheMonad for E<A> {
     fn show(v: &Self::TheM<Value>) -> String {
         let e = v.e.as_ref();
         match e {
-            Ok(a) => Value::showval(&a),
-            Err(err) => err.clone(),
+            Ok(a) => format!("Success: {}", Value::showval(&a)),
+            Err(err) => format!("Error: {}", err),
         }
     }
 }
@@ -298,7 +299,7 @@ mod tests {
         let dummy = E::dummy();
         let interpreter = Interpreter::<E<Value>>(dummy);
         let actual = interpreter.test(&t);
-        assert_eq!(actual, "42");
+        assert_eq!(actual, "Success: 42");
     }
 
     #[test]
@@ -307,6 +308,6 @@ mod tests {
         let dummy = E::dummy();
         let interpreter = Interpreter::<E<Value>>(dummy);
         let actual = interpreter.test(&t);
-        assert_eq!(actual, "Wrong");
+        assert_eq!(actual, "Error: Wrong");
     }
 }
