@@ -305,14 +305,15 @@ mod tests {
         App(Box::new(Con(1)), Box::new(Con(2)))
     }
 
-    // #[test]
-    // fn test_i_term42() {
-    //     let t = Box::new(term42());
-    //     let dummy = I::dummy();
-    //     let interpreter = Interpreter::<I<Value>>(dummy);
-    //     let actual = interpreter.test(&t);
-    //     assert_eq!(actual, "42");
-    // }
+    #[test]
+    #[ignore]
+    fn test_i_term42() {
+        let t = Box::new(term42());
+        let dummy = I::dummy();
+        let interpreter = Interpreter::<I<Value>>(dummy);
+        let actual = interpreter.test(&t);
+        assert_eq!(actual, "42");
+    }
 
     #[test]
     fn test_e_term42() {
