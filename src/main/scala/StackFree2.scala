@@ -20,8 +20,11 @@ object StackFreeMonad:
 trait StackFree2[M[_], A]:
   import StackFreeMonad.*
   import StackFree2.*
-  def flatMap[B](f: A => StackFree2[M, B]): StackFree2[M, B] = FlatMap(this, f)
-  def map[B](f: A => B): StackFree2[M, B]                    = flatMap(a => pure(f(a)))
+  def flatMap[B](f: A => StackFree2[M, B]): StackFree2[M, B] = this match
+    case FlatMap(fa, f1) => fa.flatMap(a => f1(a).flatMap(f))
+    case _               => FlatMap(this, f)
+  def map[B](f: A => B): StackFree2[M, B] = flatMap(a => pure(f(a)))
+
   // @tailrec
   final def foldMap[G[_]: Monad](natTrans: M ~> G): G[A] = this match
     case Pure(a)     => Monad[G].pure(a)
