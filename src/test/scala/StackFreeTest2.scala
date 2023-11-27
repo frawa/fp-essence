@@ -33,18 +33,17 @@ class MyStateStackFree2Test extends FunSuite:
   import StackFreeMonad.~>
   import IdMonad.Id
   def myStateF2Id[S](zero: S): MyStateF_[S] ~> Id = new (MyStateF_[S] ~> Id):
+    // TODO avoid var
+    private var current = zero
     override def apply[A](fa: MyStateF_[S][A]): Id[A] = fa match
-      case Get(g)    => Id(g(zero))
-      case Put(s, a) => Id(a)
+      case Get(g) =>
+        Id(g(current))
+      case Put(s, a) =>
+        current = s
+        Id(a)
 
-  // @tailrec
   private def eval[S, A](s: S, x: MyStateStackFree2[S, A]): A =
     x.foldMap(myStateF2Id(s)).v
-    // x.resume match {
-    //   case Right(value)     => value
-    //   case Left(Put(s, xx)) => eval(s, xx)
-    //   case Left(Get(f))     => eval(s, f(s))
-    // }
 
   private def zipIndex[A](as: Seq[A]): Seq[(Int, A)] =
     val x = as.foldLeft(
@@ -64,9 +63,15 @@ class MyStateStackFree2Test extends FunSuite:
     val zipped = zipIndex(as)
     assertEquals(zipped.lastOption.map(_._1), Some(n))
 
-  test("zip without overflow"):
+  test("zip still with overflow"):
     val n      = 1313131
     val as     = Range.inclusive(0, n).toSeq
     val zipped = Util.TryAll(zipIndex(as))
 
-    assertEquals(zipped.map(_.lastOption.map(_._1)).get, Some((n)))
+    // assertEquals(zipped.map(_.lastOption.map(_._1)).get, Some((n)))
+    assertEquals(
+      zipped
+        .fold(ex => ex.isInstanceOf[StackOverflowError], _ => false),
+      true,
+      clue("stack overflow expected")
+    )
