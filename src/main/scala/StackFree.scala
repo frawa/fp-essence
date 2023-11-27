@@ -10,9 +10,6 @@ import scala.annotation.tailrec
     and scala.util.control.TailCalls
  */
 
-object StackFree:
-  val fw = 13
-
 enum StackFree[F[+_]: Functor, +A]:
 
   private case FlatMap[F[+_]: Functor, A, +B](a: StackFree[F, A], f: A => StackFree[F, B]) extends StackFree[F, B]
@@ -36,13 +33,6 @@ enum StackFree[F[+_]: Functor, +A]:
           case Done(a)       => f(a).resume
           case More(k)       => Left(k.map(_ flatMap f))
           case FlatMap(b, g) => b.flatMap(x => g(x) flatMap f).resume
-
-  // @tailrec
-  // final def result: A =
-  //   this.resume match {
-  //     case Right(value) => value
-  //     case Left(k)      => k.map(_.result)
-  //   }
 
 trait Functor[F[+_]]:
   extension [A](x: F[A]) def map[B](f: A => B): F[B]

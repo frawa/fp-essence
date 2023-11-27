@@ -94,6 +94,8 @@ class MyStateTailCallsTest extends FunSuite:
   }
 
   test("zip overflow") {
+    // Too bad, TailrRec should have avoided this ...
+
     val n      = 131313
     val as     = Range.inclusive(0, n).toSeq
     val zipped = Util.TryAll(zipIndex(as))
@@ -156,18 +158,9 @@ class MyStateStackFreeTest extends FunSuite:
     val zipped = zipIndex(as)
     assertEquals(zipped.lastOption.map(_._1), Some(n))
 
-  test("zip overflow"):
+  test("zip without overflow"):
     val n      = 1313131
     val as     = Range.inclusive(0, n).toSeq
     val zipped = Util.TryAll(zipIndex(as))
 
     assertEquals(zipped.map(_.lastOption.map(_._1)).get, Some((n)))
-
-object Util:
-  object TryAll:
-    def apply[K](f: => K): Try[K] =
-      try {
-        Success(f)
-      } catch {
-        case e: Throwable => Failure(e)
-      }

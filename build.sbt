@@ -1,4 +1,4 @@
-val scala3Version = "3.3.0"
+val scala3Version = "3.3.1"
 
 lazy val root = project
   .in(file("."))
@@ -6,5 +6,5 @@ lazy val root = project
     name                                   := "fp-essence",
     version                                := "0.1.0-SNAPSHOT",
     scalaVersion                           := scala3Version,
-    libraryDependencies += "org.scalameta" %% "munit" % "1.0.0-M8" % Test
+    libraryDependencies += "org.scalameta" %% "munit" % "1.0.0-M10" % Test
   )
